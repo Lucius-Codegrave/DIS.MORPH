@@ -11,7 +11,7 @@
     "check:watch": "svelte-check --tsconfig ./tsconfig.json --watch",
     "format:shaders": "clang-format -i src/shaders/*.vert src/shaders/*.frag",
     "scss:variables": "sass-export src/lib/styles/abstracts/_variables.scss --json src/lib/utils/scss-variables.json",
-    "deploy": "vite build"
+    "deploy": "vite build && gh-pages -d dist"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^3.0.0",
@@ -19,6 +19,7 @@
     "@types/flubber": "^0.4.0",
     "@types/node": "^24.0.14",
     "clang-format": "^1.8.0",
+    "gh-pages": "^6.3.0",
     "sass": "^1.89.2",
     "sass-export": "^2.1.2",
     "svelte": "^4.0.0",
