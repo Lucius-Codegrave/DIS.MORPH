@@ -75,5 +75,3 @@ This project is ready for deployment on platforms like Vercel, Netlify, or GitHu
 MIT
 
 ---
-
-Digital Design & Creative Coding Studio — Paris-based, working worldwide.
