@@ -1,0 +1,35 @@
+// _variables.scss - Shared SCSS variables
+
+// Typography
+$font-stack: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+$line-height: 1.5;
+$font-weight-normal: 400;
+$font-weight-medium: 500;
+$font-weight-bold: 700;
+
+// Colors
+$text-color: black;
+$text-color-secondary: rgb(103, 114, 117);
+$background-color: black;
+$background-color-primary: white;
+$background-color-secondary: rgb(255, 0, 43);
+
+// Layout
+$full-viewport: 100vw;
+$full-height: 100vh;
+$min-width: 320px;
+
+// Z-index
+$z-index-base: 1;
+$z-index-overlay: 10;
+$z-index-modal: 100;
+
+// Breakpoints
+$breakpoint-mobile: 768px;
+$breakpoint-tablet: 1024px;
+$breakpoint-desktop: 1200px;
+
+// Animation
+$transition-fast: 0.2s ease;
+$transition-normal: 0.3s ease;
+$transition-slow: 0.5s ease;

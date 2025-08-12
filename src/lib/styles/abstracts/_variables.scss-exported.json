@@ -1,0 +1,114 @@
+{
+  "variables": [
+    {
+      "name": "$font-stack",
+      "value": "Inter, system-ui, Avenir, Helvetica, Arial, sans-serif",
+      "compiledValue": "Inter, system-ui, Avenir, Helvetica, Arial, sans-serif"
+    },
+    {
+      "name": "$line-height",
+      "value": "1.5",
+      "compiledValue": "1.5"
+    },
+    {
+      "name": "$font-weight-normal",
+      "value": "400",
+      "compiledValue": "400"
+    },
+    {
+      "name": "$font-weight-medium",
+      "value": "500",
+      "compiledValue": "500"
+    },
+    {
+      "name": "$font-weight-bold",
+      "value": "700",
+      "compiledValue": "700"
+    },
+    {
+      "name": "$text-color",
+      "value": "black",
+      "compiledValue": "black"
+    },
+    {
+      "name": "$text-color-secondary",
+      "value": "rgb(103, 114, 117)",
+      "compiledValue": "rgb(103, 114, 117)"
+    },
+    {
+      "name": "$background-color",
+      "value": "black",
+      "compiledValue": "black"
+    },
+    {
+      "name": "$background-color-primary",
+      "value": "white",
+      "compiledValue": "white"
+    },
+    {
+      "name": "$background-color-secondary",
+      "value": "rgb(255, 0, 43)",
+      "compiledValue": "rgb(255, 0, 43)"
+    },
+    {
+      "name": "$full-viewport",
+      "value": "100vw",
+      "compiledValue": "100vw"
+    },
+    {
+      "name": "$full-height",
+      "value": "100vh",
+      "compiledValue": "100vh"
+    },
+    {
+      "name": "$min-width",
+      "value": "320px",
+      "compiledValue": "320px"
+    },
+    {
+      "name": "$z-index-base",
+      "value": "1",
+      "compiledValue": "1"
+    },
+    {
+      "name": "$z-index-overlay",
+      "value": "10",
+      "compiledValue": "10"
+    },
+    {
+      "name": "$z-index-modal",
+      "value": "100",
+      "compiledValue": "100"
+    },
+    {
+      "name": "$breakpoint-mobile",
+      "value": "768px",
+      "compiledValue": "768px"
+    },
+    {
+      "name": "$breakpoint-tablet",
+      "value": "1024px",
+      "compiledValue": "1024px"
+    },
+    {
+      "name": "$breakpoint-desktop",
+      "value": "1200px",
+      "compiledValue": "1200px"
+    },
+    {
+      "name": "$transition-fast",
+      "value": "0.2s ease",
+      "compiledValue": "0.2s ease"
+    },
+    {
+      "name": "$transition-normal",
+      "value": "0.3s ease",
+      "compiledValue": "0.3s ease"
+    },
+    {
+      "name": "$transition-slow",
+      "value": "0.5s ease",
+      "compiledValue": "0.5s ease"
+    }
+  ]
+}

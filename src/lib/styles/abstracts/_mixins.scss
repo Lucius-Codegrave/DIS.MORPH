@@ -1,0 +1,57 @@
+// _mixins.scss - Reusable SCSS mixins
+
+// Import variables
+@use './variables' as *;
+
+// Mixin for full viewport dimensions
+@mixin full-viewport {
+  width: $full-viewport;
+  height: $full-height;
+}
+
+// Mixin for centering content
+@mixin center-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+// Mixin for WebGL canvas optimization
+@mixin webgl-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: smooth;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+// Mixin for smooth transitions
+@mixin smooth-transition($duration: $transition-normal, $property: all) {
+  transition: $property $duration;
+}
+
+// Mixin for responsive design
+@mixin respond-to($breakpoint) {
+  @if $breakpoint == mobile {
+    @media (max-width: $breakpoint-mobile) {
+      @content;
+    }
+  }
+  @if $breakpoint == tablet {
+    @media (max-width: $breakpoint-tablet) {
+      @content;
+    }
+  }
+  @if $breakpoint == desktop {
+    @media (min-width: $breakpoint-desktop) {
+      @content;
+    }
+  }
+}
+
+// Mixin for WebGL gradient colors
+@mixin gradient-background($start: $gradient-start, $end: $gradient-end) {
+  background: linear-gradient(45deg, $start, $end);
+}

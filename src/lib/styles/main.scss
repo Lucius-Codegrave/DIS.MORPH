@@ -1,0 +1,37 @@
+@use './base/fonts';
+@use './abstracts/variables' as *;
+@use './abstracts/mixins' as *;
+
+:root {
+  font-family: $font-stack;
+  line-height: $line-height;
+  font-weight: $font-weight-normal;
+
+  color-scheme: light dark;
+  color: $text-color;
+  background-color: $background-color;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  @include center-content;
+  min-width: $min-width;
+  min-height: $full-height;
+  overflow: hidden;
+}
+
+#app {
+  @include full-viewport;
+  margin: 0;
+  padding: 0;
+
+  canvas {
+    @include webgl-canvas;
+  }
+}
