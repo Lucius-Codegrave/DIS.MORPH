@@ -17,13 +17,6 @@ export type webGLParams = {
   transitionValue: number;
 };
 
-/**
- * Renders text onto a WebGL canvas using the provided rendering context and configuration.
- *
- * This function draws text to an offscreen buffer canvas, updates or creates a WebGL texture
- * from the buffer, and then renders it using the specified WebGL pipeline. It also handles
- * transitions and activation states for special effects.
- */
 export function renderWebGL(args: renderWebGLArgs): Texture | null {
   const {
     webgl: {
@@ -37,9 +30,7 @@ export function renderWebGL(args: renderWebGLArgs): Texture | null {
     config,
     isActive,
   } = args;
-  const { bufferCanvas } = ctx;
-  if (!reglInstance || !webglTexture || !webglCanvas || !bufferCanvas)
-    return null;
+  const { bufferCanvas, bufferCtx } = ctx;
 
   drawTextToCanvas(ctx, config, isActive);
 
@@ -50,18 +41,45 @@ export function renderWebGL(args: renderWebGLArgs): Texture | null {
       texture.width !== bufferCanvas.width ||
       texture.height !== bufferCanvas.height
     ) {
+      if (texture) {
+        (texture as any).destroy?.();
+      }
       texture = reglInstance.texture({
         data: bufferCanvas,
         width: bufferCanvas.width,
         height: bufferCanvas.height,
         flipY: true,
+        min: 'linear',
+        mag: 'linear',
+        wrap: 'clamp',
       });
     } else {
-      (texture as any).subimage({
-        data: bufferCanvas,
-        width: bufferCanvas.width,
-        height: bufferCanvas.height,
-      });
+      try {
+        (texture as any).subimage({
+          data: bufferCanvas,
+          x: 0,
+          y: 0,
+          width: bufferCanvas.width,
+          height: bufferCanvas.height,
+        });
+      } catch (error) {
+        console.warn(
+          'Failed to update texture with subimage, recreating:',
+          error
+        );
+        if (texture) {
+          (texture as any).destroy?.();
+        }
+        texture = reglInstance.texture({
+          data: bufferCanvas,
+          width: bufferCanvas.width,
+          height: bufferCanvas.height,
+          flipY: true,
+          min: 'linear',
+          mag: 'linear',
+          wrap: 'clamp',
+        });
+      }
     }
   }
 

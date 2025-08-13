@@ -3,13 +3,13 @@ import { writable } from 'svelte/store';
 const TRANSITION_DURATION = 300;
 
 function createStarStore() {
-  const { subscribe, set } = writable({ active: true, transition: 1 });
+  const { subscribe, set } = writable({ active: false, transition: 1 });
   let animationFrame: number | null = null;
   let current = 1;
   let target = 1;
   let start = 1;
   let startTime = 0;
-  let active = true;
+  let active = false;
 
   function animateTo(newTarget: number) {
     if (animationFrame) cancelAnimationFrame(animationFrame);

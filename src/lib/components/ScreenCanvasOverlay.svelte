@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, afterUpdate } from 'svelte';
+  import { interpolate } from 'flubber';
+  import { gsap } from 'gsap';
   import { star } from 'src/lib/stores/luckyStar.store';
   import { TextScrollerCanvas2D } from './TextScroller';
 
@@ -9,6 +11,18 @@
   let scrollSpeed = 3;
   let backgroundVisible = true;
   let backgroundInterval: ReturnType<typeof setInterval> | null = null;
+
+  // Path du rond (SVG circle en path)
+  const circlePath = 'M50,10 a40,40 0 1,0 0.00001,0';
+  // Path de la barre horizontale
+  const barPath = 'M20,50 L80,50';
+
+  let svgEl: SVGSVGElement;
+  let pathEl: SVGPathElement;
+  let containerEl: HTMLButtonElement;
+  let morphInterpolator: ((t: number) => string) | null = null;
+  let morphState = 0; // 0 = rond, 1 = barre
+  let isMorphing = false;
 
   $: isStarActive = $star.active;
 
@@ -21,12 +35,31 @@
         backgroundInterval = null;
         backgroundVisible = true;
       }
+      // Animation GSAP du background
+      if (containerEl) {
+        gsap.to(containerEl, {
+          backgroundColor: 'rgba(255, 0, 43, 0.7)',
+          duration: 0.1,
+          ease: 'none',
+        });
+      }
     }
   }
 
   function updateBackgroundBlink() {
     if (backgroundInterval) clearInterval(backgroundInterval);
     backgroundInterval = setInterval(() => {
+      if (containerEl) {
+        const currentBg = backgroundVisible
+          ? 'rgba(255, 0, 43, 0.9)'
+          : 'rgba(255, 0, 43, 0)';
+
+        gsap.to(containerEl, {
+          backgroundColor: currentBg,
+          duration: 0.1,
+          ease: 'none',
+        });
+      }
       backgroundVisible = !backgroundVisible;
     }, 200);
   }
@@ -55,9 +88,54 @@
     scrollSpeed = 3;
   }
 
+  function morphTo(target: 0 | 1) {
+    isMorphing = true;
+    const start = performance.now();
+    const duration = 400;
+    function animate(now: number) {
+      const t = Math.min((now - start) / duration, 1);
+      const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      pathEl.setAttribute(
+        'd',
+        target === 1 ? morphInterpolator!(eased) : morphInterpolator!(1 - eased)
+      );
+      if (t < 1) requestAnimationFrame(animate);
+      else {
+        morphState = target;
+        isMorphing = false;
+      }
+    }
+    requestAnimationFrame(animate);
+
+    // Animation GSAP de l'opacité séparée
+    gsap.to(svgEl, {
+      opacity: target === 1 ? 1 : 0,
+      duration: 0.4,
+      ease: 'cubic-bezier(0.4, 0, 0.2, 1)',
+    });
+  }
+
+  // Morph automatique à chaque changement d'état
+  afterUpdate(() => {
+    if (!isMorphing && morphInterpolator && pathEl) {
+      if (isStarActive && morphState === 0) {
+        morphTo(1);
+      } else if (!isStarActive && morphState === 1) {
+        morphTo(0);
+      }
+    }
+  });
+
   onMount(() => {
     drawOverlay();
     updateBackgroundBlink();
+    // Initialiser l'interpolateur Flubber
+    morphInterpolator = interpolate(barPath, circlePath, {
+      maxSegmentLength: 2,
+    });
+    if (pathEl) pathEl.setAttribute('d', barPath);
+    // Initialiser l'opacité selon l'état initial
+    if (svgEl) svgEl.style.opacity = '0';
     return () => {
       cancelAnimationFrame(animationFrame);
       if (backgroundInterval) clearInterval(backgroundInterval);
@@ -66,9 +144,9 @@
 </script>
 
 <button
+  bind:this={containerEl}
   type="button"
   class="screen-canvas-container"
-  class:background-visible={backgroundVisible}
   aria-pressed={$star.active}
   on:click={() => star.setActive(!$star.active)}
   on:keydown={(e) => {
@@ -81,18 +159,19 @@
   on:mouseleave={handleMouseLeave}
 >
   <svg
+    bind:this={svgEl}
     class="background-circle"
     viewBox="0 0 100 100"
     preserveAspectRatio="xMidYMid meet"
-    style="width:90%;height:90%;top:5%;left:5%;opacity:{isStarActive ? 1 : 0};"
+    style="width:90%;height:90%;top:5%;left:5%;opacity:0;"
   >
-    <circle
-      cx="50"
-      cy="50"
-      r="45"
+    <path
+      bind:this={pathEl}
+      d={barPath}
+      stroke="rgba(103, 114, 117, 0)"
+      stroke-width="2"
       fill="none"
-      stroke="rgba(255,0,43,0.7)"
-      stroke-width="4"
+      style="filter: invert(1);"
     />
   </svg>
   <TextScrollerCanvas2D
@@ -107,7 +186,6 @@
 <style lang="scss">
   .screen-canvas-container {
     background: rgba(255, 0, 43, 0);
-    transition: background-color 0.1s ease;
     pointer-events: auto;
     z-index: 9999;
     position: absolute;
@@ -127,23 +205,17 @@
     appearance: none;
     -webkit-appearance: none;
     display: block;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-
-    &.background-visible {
-      // background: rgba(255, 0, 43, 1);
-      background: rgb(179 179 179);
-    }
   }
   .screen-canvas {
     display: block;
     width: 100%;
     height: 100%;
+    z-index: 1;
   }
   .background-circle {
     position: absolute;
-    z-index: 0;
+    z-index: 2;
     pointer-events: none;
     display: block;
-    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 </style>

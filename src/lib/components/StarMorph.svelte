@@ -1,4 +1,6 @@
 <script lang="ts">
+  // File unused yet, might be useful later
+
   import { onMount } from 'svelte';
   import { interpolate } from 'flubber';
 

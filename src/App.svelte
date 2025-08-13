@@ -112,18 +112,74 @@
     if (newValue === oldValue) return;
 
     if (newValue) {
+      // Animate main element
       gsap.to(mainEl, {
         background:
-          'radial-gradient(circle at 10% 80%, white 0%, rgb(220 220 220) 100%)',
+          'radial-gradient(circle at 100% 0%, white 0%, rgb(150 150 150) 100%)',
         duration: 0.7,
         ease: 'cubic-bezier(0.4, 0, 0.2, 1)',
       });
+
+      // Animate overlay
+      if (overlayEl) {
+        gsap.to(overlayEl, {
+          left: '80px',
+          duration: 0.3,
+          ease: 'cubic-bezier(0.4, 0, 0.2, 1)',
+        });
+      }
+
+      // Animate gap panel
+      if (gapPanelEl) {
+        gsap.to(gapPanelEl, {
+          width: '20px',
+          duration: 0.3,
+          ease: 'cubic-bezier(0.4, 0, 0.2, 1)',
+        });
+      }
+
+      // Animate first panel
+      if (firstPanelEl) {
+        gsap.to(firstPanelEl, {
+          width: '55%',
+          duration: 0.3,
+          ease: 'cubic-bezier(0.4, 0, 0.2, 1)',
+        });
+      }
     } else {
+      // Animate main element
       gsap.to(mainEl, {
         background: 'black',
         duration: 0.7,
         ease: 'cubic-bezier(0.4, 0, 0.2, 1)',
       });
+
+      // Animate overlay
+      if (overlayEl) {
+        gsap.to(overlayEl, {
+          left: '0',
+          duration: 0.3,
+          ease: 'cubic-bezier(0.4, 0, 0.2, 1)',
+        });
+      }
+
+      // Animate gap panel
+      if (gapPanelEl) {
+        gsap.to(gapPanelEl, {
+          width: '0%',
+          duration: 0.3,
+          ease: 'cubic-bezier(0.4, 0, 0.2, 1)',
+        });
+      }
+
+      // Animate first panel
+      if (firstPanelEl) {
+        gsap.to(firstPanelEl, {
+          width: '0%',
+          duration: 0.3,
+          ease: 'cubic-bezier(0.4, 0, 0.2, 1)',
+        });
+      }
     }
 
     Object.keys(scramblerConfig).forEach((key) => {
@@ -149,14 +205,20 @@
 
   $: handleStarActiveChange($star.active, previousStarActive);
 
-  let colonVisible = true;
   let colonInterval: ReturnType<typeof setInterval> | null = null;
 
   function updateColonInterval() {
     if (colonInterval) clearInterval(colonInterval);
     const intervalMs = isStarActive ? 125 : 500;
     colonInterval = setInterval(() => {
-      colonVisible = !colonVisible;
+      if (colonEl) {
+        const currentOpacity = gsap.getProperty(colonEl, 'opacity') as number;
+        gsap.to(colonEl, {
+          opacity: currentOpacity === 0 ? 1 : 0,
+          duration: 0.15,
+          ease: 'power2.inOut',
+        });
+      }
     }, intervalMs);
   }
 
@@ -164,6 +226,10 @@
 
   let headerEl: HTMLElement;
   let contactEl: HTMLElement;
+  let overlayEl: HTMLElement;
+  let gapPanelEl: HTMLElement;
+  let firstPanelEl: HTMLElement;
+  let colonEl: HTMLElement;
 
   onMount(async () => {
     networkInfo = await getNetworkInfo();
@@ -181,6 +247,17 @@
 
     gsap.set([headerEl, contactEl], { transition: 'none' });
 
+    gsap.from(mainEl, {
+      opacity: 0,
+      duration: 5,
+      ease: 'power2.out',
+    });
+    gsap.from(overlayEl, {
+      opacity: 0,
+      duration: 1,
+      delay: 1,
+      ease: 'power2.out',
+    });
     gsap.from(headerEl, {
       opacity: 0,
       x: -500,
@@ -209,17 +286,18 @@
 </script>
 
 <main bind:this={mainEl} class:is-star-active={isStarActive}>
-  <h1 bind:this={headerEl} class="header{isStarActive ? ' active' : ''}">
+  <h1 bind:this={headerEl} class="header">
     {headerText}
   </h1>
   <div class="container">
-    <div class="gap-panel{isStarActive ? ' active' : ''}">
+    <div bind:this={gapPanelEl} class="gap-panel">
       <GapPanel />
     </div>
-    <div class="overlay{isStarActive ? ' active' : ''}">
+    <div bind:this={overlayEl} class="overlay">
       <ScreenCanvasOverlay />
     </div>
-    <div class="first-panel{isStarActive ? ' active' : ''}">
+    <div bind:this={firstPanelEl} class="first-panel">
+      >
       <ScreenCanvas
         videoPlaybackRate={0.9}
         isLeft={true}
@@ -233,7 +311,7 @@
         baseDisplacementStrength={0.1}
       />
     </div>
-    <div class="second-panel{isStarActive ? ' active' : ''}">
+    <div class="second-panel">
       <ScreenCanvas
         videoPlaybackRate={0.9}
         isLeft={false}
@@ -248,18 +326,16 @@
       />
     </div>
   </div>
-  <div bind:this={contactEl} class="contact{isStarActive ? ' active' : ''}">
+  <div bind:this={contactEl} class="contact">
     <span>
       {isStarActive ? userCityText : localCityText}
-      <span class="colon-fade{colonVisible ? ' visible' : ''}"> :</span>
+      <span bind:this={colonEl} class="colon-fade"> :</span>
       {isStarActive ? userTimeText : localTimeText}
     </span>
     <br />
     <span>{isStarActive ? ipV4Text : contactText}</span>
     <br />
-    <span class="mail{isStarActive ? ' active' : ''}"
-      >{isStarActive ? ipV6Text : mailText}</span
-    >
+    <span class="mail">{isStarActive ? ipV6Text : mailText}</span>
     <br />
   </div>
 </main>
@@ -305,14 +381,9 @@
     bottom: 10%;
     left: 0;
     z-index: 9999;
-    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     display: inline-block;
     width: 40%;
     aspect-ratio: 5 / 3;
-
-    &.active {
-      left: 80px;
-    }
   }
 
   .gap-panel {
@@ -322,25 +393,15 @@
     display: flex;
     align-items: stretch;
     justify-content: center;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     background-color: $background-color;
     overflow: hidden;
-
-    &.active {
-      width: 20px;
-    }
   }
 
   .first-panel {
     height: 100%;
     width: 0%;
     box-sizing: border-box;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
-
-    &.active {
-      width: 55%;
-    }
   }
 
   .second-panel {
@@ -348,7 +409,6 @@
     height: 100%;
     box-sizing: border-box;
     letter-spacing: 0.05em;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .header {
@@ -384,16 +444,11 @@
     text-align: right;
     text-transform: uppercase;
     mix-blend-mode: difference;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .colon-fade {
     display: inline-block;
     opacity: 0;
-    transition: opacity 0.15s;
-    &.visible {
-      opacity: 1;
-    }
   }
 
   .mail {

@@ -29,7 +29,7 @@ void main() {
     // Apply a curved distortion effect if the star is active
     // This simulates a simple lens distortion effect
     vec2 curved_uv = v_uv;
-    float curve_offset = -0.08 * pow(curved_uv.x - 0.5, 2.0) * transition;
+    float curve_offset = sin(v_uv.x * 3.14159) * 0.04;
     curved_uv.y += curve_offset;
 
     // Apply a Gaussian blur using a 5-tap filter

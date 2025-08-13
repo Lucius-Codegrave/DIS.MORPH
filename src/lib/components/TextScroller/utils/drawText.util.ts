@@ -13,6 +13,10 @@ export type DrawConfig = {
   lineOffsets: number[];
   lineSpeeds: number[];
   linesArray: { text: string; key: string }[][];
+  // Cache pour optimiser les performances
+  _phraseWidthsCache?: Map<string, number>;
+  _separatorWidth?: number;
+  _fontString?: string;
 };
 
 export type DrawContext = {
@@ -68,6 +72,46 @@ function getPhraseRenderer(renderMode: RenderMode): PhraseRenderer {
 }
 
 /**
+ * Calculates or retrieves cached phrase widths for better performance
+ */
+function getPhraseWidths(
+  bufferCtx: CanvasRenderingContext2D,
+  lineEntries: { text: string; key: string }[],
+  config: DrawConfig
+): number[] {
+  if (!config._phraseWidthsCache) {
+    config._phraseWidthsCache = new Map();
+  }
+
+  const currentFont = `${config.fontSize}px '${config.fontFamily}', monospace`;
+  if (config._fontString !== currentFont) {
+    config._fontString = currentFont;
+    config._phraseWidthsCache.clear(); // Clear cache if font changed
+  }
+
+  return lineEntries.map((e) => {
+    const cacheKey = e.text;
+    if (!config._phraseWidthsCache!.has(cacheKey)) {
+      const width = bufferCtx.measureText(e.text).width;
+      config._phraseWidthsCache!.set(cacheKey, width);
+    }
+    return config._phraseWidthsCache!.get(cacheKey)!;
+  });
+}
+
+/**
+ * Gets cached separator width
+ */
+function getSeparatorWidth(
+  bufferCtx: CanvasRenderingContext2D,
+  config: DrawConfig
+): number {
+  if (config._separatorWidth === undefined) {
+    config._separatorWidth = bufferCtx.measureText(' - ').width;
+  }
+  return config._separatorWidth;
+}
+/**
  * Draws a phrase onto a canvas context using the specified configuration and render mode.
  */
 function drawPhrase(
@@ -92,13 +136,6 @@ function getScrollSpeed(renderMode: RenderMode, config: DrawConfig): number {
   return renderMode === 'unique' ? config.scrollSpeed * 4 : config.scrollSpeed;
 }
 
-/**
- * Draws a horizontally scrolling line of text phrases on a canvas context, with alternating scroll directions per line.
- *
- * Each line consists of multiple text entries separated by a phrase separator. The line scrolls at a speed determined by its
- * configuration and render mode, and repeats seamlessly to create a continuous scrolling effect. The function handles both
- * left-to-right and right-to-left scrolling based on the line index.
- */
 function drawLine(
   bufferCtx: CanvasRenderingContext2D,
   width: number,
@@ -112,10 +149,8 @@ function drawLine(
 ) {
   const direction = i % 2 === 0 ? 1 : -1;
   const phraseSeparator = ' - ';
-  const phraseWidths = lineEntries.map(
-    (e) => bufferCtx.measureText(e.text).width
-  );
-  const separatorWidth = bufferCtx.measureText(phraseSeparator).width;
+  const phraseWidths = getPhraseWidths(bufferCtx, lineEntries, config);
+  const separatorWidth = getSeparatorWidth(bufferCtx, config);
   const lineTextWidth = phraseWidths.reduce(
     (acc, w, idx) => acc + w + (idx > 0 ? separatorWidth : 0),
     0
@@ -150,13 +185,6 @@ function drawLine(
   }
 }
 
-/**
- * Draws multiple lines of text onto a buffer canvas context, applying scrolling offsets and speeds.
- *
- * This function prepares the buffer canvas, sets up font and baseline, and iterates over the visible lines,
- * drawing each line using the provided configuration and context. It supports dynamic line offsets and speeds,
- * and can render in an "active" state.
- */
 export function drawTextToCanvas(
   ctx: DrawContext,
   config: DrawConfig,
@@ -165,15 +193,25 @@ export function drawTextToCanvas(
   const { bufferCtx, bufferCanvas } = ctx;
   const { width, height } = bufferCanvas;
   const { linesArray, lineOffsets, lineSpeeds } = config;
+
   if (bufferCanvas.height !== height) bufferCanvas.height = height;
-  if (!bufferCtx) return;
+
   bufferCtx.save();
   bufferCtx.clearRect(0, 0, width, height);
-  bufferCtx.restore();
-  bufferCtx.save();
-  bufferCtx.font = `${config.fontSize}px '${config.fontFamily}', monospace`;
+
+  const fontString = `${config.fontSize}px '${config.fontFamily}', monospace`;
+  if (config._fontString !== fontString) {
+    bufferCtx.font = fontString;
+    config._fontString = fontString;
+    if (config._phraseWidthsCache) {
+      config._phraseWidthsCache.clear();
+    }
+    config._separatorWidth = undefined;
+  }
+
   bufferCtx.textBaseline = 'middle';
   const linesOnScreen = Math.ceil(height / config.lineHeight) + 2;
+
   for (let i = 0; i < linesOnScreen; i++) {
     const lineIndex = i % linesArray.length;
     const lineEntries = linesArray[lineIndex];

@@ -11,9 +11,9 @@
   import { generateLinesArray } from 'src/lib/components/TextScroller';
 
   export let exposeBufferCanvas: (canvas: HTMLCanvasElement) => void = () => {};
-  export let fontSize: number = 20;
-  export let lineHeight: number = 20;
-  export let scrollSpeed: number = 3;
+  export let fontSize: number = 10;
+  export let lineHeight: number = 10;
+  export let scrollSpeed: number = 1;
 
   $: linesArray = generateLinesArray(linesCount);
   $: isStarActive = $star.active;
@@ -21,8 +21,8 @@
 
   const fontFamily = 'BIZ UDMincho';
   const textOpacity = 0.3;
-  const textColor = 'black';
-  const linesCount = 50;
+  $: textColor = isStarActive ? 'rgba(0, 0, 0, 0.6)' : 'rgba(103, 114, 117, 0)';
+  const linesCount = 80;
 
   let webglCanvas: HTMLCanvasElement;
   let bufferCanvas: HTMLCanvasElement;
@@ -32,227 +32,191 @@
   let webglTexture: regl.DrawCommand | null = null;
   let bufferTexture: regl.Texture | null = null;
   let animationId: number;
-  let animationStarted = false;
-  let isInitializing = false;
-  let lastTransitionValue = -1;
   let debounceTimeout: number | null = null;
-
-  /**
-   * Reactive block that manages initialization and cleanup based on changes in `transitionValue`.
-   * - When `transitionValue` transitions from <= 0 to > 0 and not initializing, triggers a debounced initialization via `forceInitialization()`.
-   * - If a debounce timeout is already set, it is cleared before setting a new one.
-   * - When `transitionValue` transitions from > 0 to <= 0, any pending debounce timeout is cleared to prevent unwanted initialization.
-   * - Updates `lastTransitionValue` to track previous state for transition detection.
-   */
-  $: {
-    if (transitionValue > 0 && lastTransitionValue <= 0 && !isInitializing) {
-      if (debounceTimeout) {
-        clearTimeout(debounceTimeout);
-      }
-      debounceTimeout = setTimeout(() => {
-        forceInitialization();
-        debounceTimeout = null;
-      }, 100);
-    }
-
-    if (transitionValue <= 0 && lastTransitionValue > 0) {
-      if (debounceTimeout) {
-        clearTimeout(debounceTimeout);
-        debounceTimeout = null;
-      }
-    }
-    lastTransitionValue = transitionValue;
-  }
-
-  // TODO simplify this mess
-  /**
-   * Forces the initialization of the buffer and WebGL canvases based on the parent element's size.
-   * - Checks if initialization is already in progress to prevent re-entry.
-   * - If the parent element's dimensions are available, resizes the canvases and restarts the animation.
-   * - If dimensions are not available, retries after a short delay.
-   * - Cancels any ongoing animation before resizing.
-   * - Ensures initialization state is properly managed.
-   */
-  function forceInitialization() {
-    if (isInitializing) return;
-    if (bufferCtx && bufferCanvas && bufferCanvas.parentElement) {
-      isInitializing = true;
-      const rect = bufferCanvas.parentElement.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) {
-        if (animationStarted && animationId) {
-          cancelAnimationFrame(animationId);
-          animationStarted = false;
-        }
-        bufferCanvas.width = rect.width;
-        bufferCanvas.height = rect.height;
-        if (webglCanvas) {
-          webglCanvas.width = rect.width;
-          webglCanvas.height = rect.height;
-        }
-        startAnimationIfReady();
-        isInitializing = false;
-      } else {
-        setTimeout(() => {
-          const rect2 = bufferCanvas.parentElement?.getBoundingClientRect();
-          if (rect2 && rect2.width > 0 && rect2.height > 0) {
-            if (animationStarted && animationId) {
-              cancelAnimationFrame(animationId);
-              animationStarted = false;
-            }
-            bufferCanvas.width = rect2.width;
-            bufferCanvas.height = rect2.height;
-            if (webglCanvas) {
-              webglCanvas.width = rect2.width;
-              webglCanvas.height = rect2.height;
-            }
-            startAnimationIfReady();
-          }
-          isInitializing = false;
-        }, 400);
-      }
-    } else {
-      isInitializing = false;
-    }
-  }
+  let isInitialized = false;
+  let isAnimating = false;
+  let lineOffsets: number[] = [];
+  let lineSpeeds: number[] = [];
+  let resizeHandler: (() => void) | null = null;
+  let resizeObserver: ResizeObserver | null = null;
 
   function setupReglTexture() {
-    setTimeout(() => {
-      if (reglInstance == null) {
-        throw new Error('reglInstance is not initialized');
-      }
-      webglTexture = reglInstance({
-        frag: fragmentShader,
-        vert: vertexShader,
-        attributes: {
-          position: [
-            [-1, -1],
-            [1, -1],
-            [1, 1],
-            [-1, 1],
-          ],
-        },
-        elements: [
-          [0, 1, 2],
-          [2, 3, 0],
+    if (reglInstance == null) {
+      throw new Error('reglInstance is not initialized');
+    }
+    webglTexture = reglInstance({
+      frag: fragmentShader,
+      vert: vertexShader,
+      attributes: {
+        position: [
+          [-1, -1],
+          [1, -1],
+          [1, 1],
+          [-1, 1],
         ],
-        uniforms: {
-          tex: (reglInstance as any).prop('tex'),
-          is_active: (reglInstance as any).prop('is_active'),
-          transition: (reglInstance as any).prop('transition'),
-        },
-      });
-    }, 0);
+      },
+      elements: [
+        [0, 1, 2],
+        [2, 3, 0],
+      ],
+      uniforms: {
+        tex: (reglInstance as any).prop('tex'),
+        is_active: (reglInstance as any).prop('is_active'),
+        transition: (reglInstance as any).prop('transition'),
+      },
+    });
   }
 
-  function cleanup(resizeHandler: () => void) {
-    window.removeEventListener('resize', resizeHandler);
-    if (animationId) cancelAnimationFrame(animationId);
-    if (reglInstance) reglInstance.destroy();
+  function cleanup() {
+    if (resizeObserver) {
+      resizeObserver.disconnect();
+      resizeObserver = null;
+    }
+    resizeHandler = null;
+    if (animationId) {
+      cancelAnimationFrame(animationId);
+      animationId = 0;
+    }
+    if (reglInstance) {
+      reglInstance.destroy();
+      reglInstance = null;
+    }
+    if (bufferTexture) {
+      bufferTexture = null;
+    }
+    webglTexture = null;
+    isInitialized = false;
+    isAnimating = false;
   }
 
-  function startAnimationIfReady() {
-    if (
-      bufferCtx &&
-      bufferCanvas &&
-      bufferCanvas.width > 0 &&
-      bufferCanvas.height > 0
-    ) {
-      if (!animationStarted) {
-        animationStarted = true;
-        let lineOffsets = linesArray.map(() => Math.random() * 1000);
-        const lineSpeeds = linesArray.map(() => Math.random() + 0.2);
+  function createResizeHandler() {
+    let timeoutId1: number | null = null;
+    let timeoutId2: number | null = null;
 
-        let resizeHandler = () =>
-          resizeWebGL({
-            webglCanvas,
-            bufferCanvas,
-            gl,
-            linesCount: linesCount,
-            lineOffsets,
-          });
-
-        requestAnimationFrame(() => {
-          gl = webglCanvas.getContext('webgl', {
-            premultipliedAlpha: false,
-            antialias: false,
-            depth: false,
-            stencil: false,
-            powerPreference: 'default',
-          })!;
-          reglInstance = regl(gl);
-          setupReglTexture();
+    function doResize() {
+      if (webglCanvas && bufferCanvas && gl && linesCount) {
+        resizeWebGL({
+          webglCanvas,
+          bufferCanvas,
+          gl,
+          linesCount,
+          lineOffsets,
         });
-
-        window.addEventListener('resize', resizeHandler);
-        resizeHandler();
-
-        setTimeout(() => {
-          isInitializing = false;
-        }, 100);
-
-        function renderLoop() {
-          if (!reglInstance || !webglTexture) {
-            animationId = requestAnimationFrame(renderLoop);
-            return;
-          }
-          bufferTexture = renderWebGL({
-            webgl: {
-              reglInstance,
-              webglTexture,
-              webglCanvas,
-              bufferTexture,
-              transitionValue,
-            },
-            ctx: {
-              bufferCanvas,
-              bufferCtx,
-            },
-            config: {
-              fontSize,
-              lineHeight,
-              scrollSpeed,
-              fontFamily,
-              textOpacity,
-              textColor,
-              linesCount,
-              linesArray,
-              lineOffsets,
-              lineSpeeds,
-            },
-            isActive: isStarActive,
-          });
-          animationId = requestAnimationFrame(renderLoop);
-        }
-        renderLoop();
-        return () => cleanup(resizeHandler);
       }
     }
+
+    return () => {
+      if (timeoutId1) clearTimeout(timeoutId1);
+      if (timeoutId2) clearTimeout(timeoutId2);
+
+      timeoutId1 = setTimeout(doResize, 0);
+      timeoutId2 = setTimeout(doResize, 16);
+    };
+  }
+
+  async function initializeWebGL() {
+    if (isInitialized || !webglCanvas || !bufferCanvas) return;
+
+    lineOffsets = linesArray.map(() => Math.random() * 1000);
+    lineSpeeds = linesArray.map(() => Math.random() + 0.2);
+
+    resizeHandler = createResizeHandler();
+
+    gl = webglCanvas.getContext('webgl', {
+      premultipliedAlpha: false,
+      antialias: false,
+      depth: false,
+      stencil: false,
+      powerPreference: 'high-performance',
+    })!;
+
+    if (!gl) {
+      console.error('WebGL not supported');
+      return;
+    }
+
+    reglInstance = regl(gl);
+    const parentEl = webglCanvas?.parentElement;
+    if (parentEl) {
+      resizeObserver = new ResizeObserver(() => {
+        resizeHandler?.();
+      });
+      resizeObserver.observe(parentEl);
+    }
+
+    resizeHandler();
+
+    setupReglTexture();
+    isInitialized = true;
+
+    if (!isAnimating) {
+      startAnimationLoop();
+    }
+  }
+
+  function startAnimationLoop() {
+    if (isAnimating || !reglInstance || !webglTexture) return;
+
+    isAnimating = true;
+
+    function renderLoop() {
+      if (!isAnimating || !reglInstance || !webglTexture) return;
+
+      bufferTexture = renderWebGL({
+        webgl: {
+          reglInstance,
+          webglTexture,
+          webglCanvas,
+          bufferTexture,
+          transitionValue,
+        },
+        ctx: {
+          bufferCanvas,
+          bufferCtx,
+        },
+        config: {
+          fontSize,
+          lineHeight,
+          scrollSpeed,
+          fontFamily,
+          textOpacity,
+          textColor,
+          linesCount,
+          linesArray,
+          lineOffsets,
+          lineSpeeds,
+        },
+        isActive: isStarActive,
+      });
+      animationId = requestAnimationFrame(renderLoop);
+    }
+    renderLoop();
   }
 
   afterUpdate(() => {
-    if (bufferCanvas && !bufferCtx) {
+    if (!bufferCtx && bufferCanvas) {
       bufferCtx = bufferCanvas.getContext('2d')!;
     }
-    if (bufferCanvas) {
+
+    if (bufferCanvas && bufferCtx) {
       exposeBufferCanvas(bufferCanvas);
-    }
-    if (!isInitializing) {
-      startAnimationIfReady();
+
+      if (!isInitialized) {
+        initializeWebGL();
+      }
+
+      if (isInitialized && !isAnimating) {
+        startAnimationLoop();
+      }
     }
   });
 
   onDestroy(() => {
-    if (animationId) {
-      cancelAnimationFrame(animationId);
-    }
-    if (reglInstance) {
-      reglInstance.destroy();
-    }
+    isAnimating = false;
+    cleanup();
     if (debounceTimeout) {
       clearTimeout(debounceTimeout);
     }
-    animationStarted = false;
-    isInitializing = false;
   });
 </script>
 

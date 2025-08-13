@@ -43,10 +43,28 @@ export const loadVideoTexture: VideoTextureLoader = (
     video.loop = true;
     video.muted = true;
     video.playsInline = true;
+    video.autoplay = true;
+    video.preload = 'metadata';
     video.playbackRate = videoPlaybackRate;
+
+    const isMobile =
+      /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent
+      );
+
+    const tryPlay = () => {
+      return video.play().catch((error) => {
+        console.warn('Video autoplay failed:', error);
+        if (isMobile) {
+          video.muted = true;
+          return video.play();
+        }
+        throw error;
+      });
+    };
+
     video.oncanplaythrough = () => {
-      video
-        .play()
+      tryPlay()
         .then(() => {
           if (video.videoWidth > 0 && video.videoHeight > 0) {
             const texture = reglInstance.texture({
@@ -61,6 +79,23 @@ export const loadVideoTexture: VideoTextureLoader = (
         })
         .catch(reject);
     };
-    video.onerror = (err) => reject(err);
+
+    video.onerror = (err) => {
+      console.error('Video loading error:', err);
+      reject(err);
+    };
+
+    if (isMobile) {
+      const playOnInteraction = () => {
+        tryPlay().catch(console.error);
+        document.removeEventListener('touchstart', playOnInteraction);
+        document.removeEventListener('click', playOnInteraction);
+      };
+
+      document.addEventListener('touchstart', playOnInteraction, {
+        once: true,
+      });
+      document.addEventListener('click', playOnInteraction, { once: true });
+    }
   });
 };

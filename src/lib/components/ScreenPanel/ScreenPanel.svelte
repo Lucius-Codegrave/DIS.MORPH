@@ -22,7 +22,7 @@
   export let rotationSmoothing = 0.05;
   export let baseDisplacementStrength = 1;
   export let showTextBackground = true;
-  export let videoPlaybackRate = 1.0;
+  export let videoPlaybackRate = 5.0;
   export let isLeft = false;
   export let backgroundColor = 'white';
 
@@ -59,13 +59,19 @@
       displacementImageTex: Texture2D | null = null;
 
     Promise.all([
-      loadVideoTexture('assets/video1.mp4', videoPlaybackRate, regl),
       loadVideoTexture(
-        !isLeft ? 'assets/video1.mp4' : 'assets/fire1.mp4',
+        `${import.meta.env.BASE_URL}assets/video1.mp4`,
         videoPlaybackRate,
         regl
       ),
-      loadImageTexture('assets/red_star.png', regl),
+      loadVideoTexture(
+        !isLeft
+          ? `${import.meta.env.BASE_URL}assets/video1.mp4`
+          : `${import.meta.env.BASE_URL}assets/fire1.mp4`,
+        videoPlaybackRate,
+        regl
+      ),
+      loadImageTexture(`${import.meta.env.BASE_URL}assets/red_star.png`, regl),
     ])
       .then(([videoData, noiseData, imageTex]) => {
         videoTex = videoData.texture;
@@ -170,6 +176,7 @@
     };
 
     window.addEventListener('mousemove', rotationHandler.handleMouseMove);
+    window.addEventListener('touchmove', rotationHandler.handleTouchMove);
 
     frame = regl.frame(() => {
       render();
@@ -193,6 +200,7 @@
       }
       if (regl) regl.destroy();
       window.removeEventListener('mousemove', rotationHandler.handleMouseMove);
+      window.removeEventListener('touchmove', rotationHandler.handleTouchMove);
       if (resizeHandler) resizeHandler.stop();
     };
   });
